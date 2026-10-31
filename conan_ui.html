@@ -1,0 +1,368 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><title>Conan Forecast</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: a single case board. Hero action on top (one big button reveals the 100-episode forecast),
+   then a character finder with a typing guide, and a two-part dossier card (portrait | case file). */
+:root {
+  --bg: #e7ecf5; --panel: #f4f7fc; --card: #ffffff; --ink: #0d1930; --muted: #51607b; --line: #cbd5e8;
+  --accent: #2255e3; --on-accent: #ffffff; --accent-soft: #dae5fd; --bar: #b6c3dd;
+  --ok: #0c7a50; --ok-soft: #d6f0e4; --bad: #b02b38; --bad-soft: #f8dcdf; --warn: #96580a; --warn-soft: #faeacb;
+  --shadow: 0 1px 2px rgba(13, 25, 48, .06), 0 12px 32px -16px rgba(13, 25, 48, .22);
+  --f-display: 'Unbounded', 'Trebuchet MS', sans-serif;
+  --f-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #09111f; --panel: #0f1a2e; --card: #14213a; --ink: #e8eefc; --muted: #94a3c2; --line: #263552;
+    --accent: #6f96ff; --on-accent: #07122b; --accent-soft: #1b2e5a; --bar: #33466c;
+    --ok: #4ad19b; --ok-soft: #12382b; --bad: #ff8a95; --bad-soft: #43202a; --warn: #f2b45a; --warn-soft: #3f2d0e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 36px -18px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #09111f; --panel: #0f1a2e; --card: #14213a; --ink: #e8eefc; --muted: #94a3c2; --line: #263552;
+  --accent: #6f96ff; --on-accent: #07122b; --accent-soft: #1b2e5a; --bar: #33466c;
+  --ok: #4ad19b; --ok-soft: #12382b; --bad: #ff8a95; --bad-soft: #43202a; --warn: #f2b45a; --warn-soft: #3f2d0e;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 36px -18px rgba(0, 0, 0, .7);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 var(--f-body);
+  padding-block: 24px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 28px; }
+
+/* top bar */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 .95rem var(--f-display); letter-spacing: .01em; }
+.brand svg { width: 28px; height: 28px; color: var(--accent); }
+.range { font: 500 .8rem var(--f-mono); color: var(--muted); border: 1px solid var(--line); background: var(--panel); padding: 5px 12px; border-radius: 99px; }
+
+/* hero */
+.hero { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: clamp(20px, 4vw, 38px); display: grid; gap: 22px; box-shadow: var(--shadow); }
+.hero h1 { font: 700 clamp(1.5rem, 4.4vw, 2.5rem)/1.12 var(--f-display); letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.hero p { margin: 0; color: var(--muted); max-width: 62ch; }
+.go { justify-self: start; display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; padding: 16px 20px 16px 26px; border: 0; border-radius: 16px; cursor: pointer; background: var(--accent); color: var(--on-accent); font: 800 1.05rem var(--f-body); box-shadow: 0 12px 26px -12px var(--accent); transition: transform .15s ease; text-align: left; }
+.go:hover { transform: translateY(-2px); }
+.go small { font-weight: 500; opacity: .85; font-size: .8rem; display: block; }
+kbd { font: 500 .8rem var(--f-mono); padding: 4px 10px; border-radius: 8px; background: color-mix(in srgb, var(--on-accent) 20%, transparent); border: 1px solid color-mix(in srgb, var(--on-accent) 35%, transparent); }
+
+/* results */
+#results { display: grid; gap: 20px; padding-top: 6px; border-top: 1px solid var(--line); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+.stat { border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 12px 14px; }
+.stat b { display: block; font: 500 1.55rem var(--f-mono); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: .82rem; }
+.lbl { font: 700 .72rem var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.strip, .spark { display: grid; grid-template-columns: repeat(100, minmax(0, 1fr)); gap: 1px; align-items: end; }
+.strip { height: 60px; }
+.strip button { padding: 0; border: 0; background: var(--bar); border-radius: 2px 2px 0 0; min-height: 3px; cursor: pointer; }
+.strip button.in { background: var(--accent); }
+.axis { display: flex; justify-content: space-between; font: 500 .72rem var(--f-mono); color: var(--muted); margin-top: 6px; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.tab { flex: none; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 12px; font: 500 .8rem var(--f-mono); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tog { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: .88rem; cursor: pointer; }
+.ep { display: grid; grid-template-columns: 96px 128px minmax(0, 1fr); gap: 8px 16px; padding: 14px 0; border-top: 1px solid var(--line); align-items: start; }
+.epno { font: 500 1rem var(--f-mono); }
+.epno small { display: block; color: var(--muted); font-size: .72rem; }
+.pill { justify-self: start; display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 99px; font: 700 .78rem var(--f-body); background: var(--bar); color: var(--ink); }
+.pill.m { background: var(--accent-soft); color: var(--accent); }
+.pill i { font: 500 .72rem var(--f-mono); font-style: normal; opacity: .85; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.chip { display: inline-flex; gap: 6px; align-items: baseline; border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 4px 11px; font: 700 .8rem var(--f-body); cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip i { font: 500 .72rem var(--f-mono); font-style: normal; color: var(--muted); }
+.chip.lo { background: transparent; color: var(--muted); font-weight: 500; }
+.foot { color: var(--muted); font-size: .82rem; margin: 0; max-width: 70ch; }
+
+/* finder */
+.sec { font: 700 1.25rem var(--f-display); margin: 0; }
+.finder { display: grid; gap: 16px; }
+.guide { border: 1.5px dashed var(--line); border-radius: 18px; padding: 16px 20px; background: var(--panel); display: grid; gap: 12px; }
+.guide h3 { margin: 0; font: 800 .95rem var(--f-body); }
+.guide ol { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; color: var(--muted); }
+code, .k { font: 500 .86em var(--f-mono); background: var(--accent-soft); color: var(--accent); padding: 1px 7px; border-radius: 6px; }
+.try { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.try > span { color: var(--muted); font-size: .85rem; margin-right: 2px; }
+.try .chip, .idx .chip { font-family: var(--f-mono); font-weight: 500; font-size: .78rem; }
+details.index summary { cursor: pointer; font-weight: 700; color: var(--accent); width: fit-content; }
+.idx { display: grid; gap: 12px; margin-top: 12px; }
+.idx h4 { margin: 0 0 6px; font: 700 .72rem var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.search { position: relative; }
+.search > svg { position: absolute; left: 17px; top: 17px; width: 20px; height: 20px; color: var(--muted); pointer-events: none; }
+.search input { width: 100%; padding: 15px 18px 15px 48px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--card); font: 500 1.05rem var(--f-mono); }
+.search input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 4px var(--accent-soft); }
+.sug { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 6px); list-style: none; margin: 0; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.sug li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer; min-width: 0; }
+.sug li[aria-selected="true"] { background: var(--accent-soft); }
+.sug b { font-weight: 700; }
+.sug .key { font: 500 .78rem var(--f-mono); color: var(--muted); }
+.sug .grp { margin-left: auto; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+.dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.dot.alive { background: var(--ok); } .dot.dead { background: var(--bad); } .dot.dead_doubtful { background: var(--warn); }
+.msg { margin: 0; color: var(--bad); font-weight: 600; }
+
+/* dossier card */
+.dossier { display: grid; grid-template-columns: minmax(0, 280px) minmax(0, 1fr); background: var(--card); border: 1px solid var(--line); border-radius: 26px; overflow: hidden; box-shadow: var(--shadow); }
+.portrait { position: relative; min-height: 360px; display: grid; place-items: center; overflow: hidden; background: linear-gradient(165deg, var(--accent-soft), var(--panel)); }
+.portrait .mono { font: 700 5rem var(--f-display); color: var(--accent); opacity: .35; }
+.portrait img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
+.stamp { position: absolute; left: 14px; bottom: 20px; transform: rotate(-6deg); border: 2.5px solid currentColor; border-radius: 8px; padding: 5px 11px; font: 700 .8rem var(--f-mono); letter-spacing: .14em; text-transform: uppercase; background: color-mix(in srgb, var(--card) 85%, transparent); }
+.stamp.alive { color: var(--ok); } .stamp.dead { color: var(--bad); } .stamp.dead_doubtful { color: var(--warn); }
+.tone { position: absolute; right: 14px; bottom: 14px; width: 48px; height: 48px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); cursor: pointer; box-shadow: 0 8px 18px -8px var(--accent); }
+.tone svg { width: 20px; height: 20px; }
+.tone.on { box-shadow: 0 0 0 5px var(--accent-soft), 0 0 0 7px var(--accent); }
+.file { padding: clamp(18px, 3vw, 30px); display: grid; gap: 18px; align-content: start; min-width: 0; }
+.eyebrow { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 500 .74rem var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.file h2 { margin: 6px 0 0; font: 700 clamp(1.35rem, 3.4vw, 2rem)/1.15 var(--f-display); overflow-wrap: anywhere; }
+.status { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 5px 13px; border-radius: 99px; font-weight: 800; font-size: .85rem; }
+.status.alive { background: var(--ok-soft); color: var(--ok); } .status.dead { background: var(--bad-soft); color: var(--bad); } .status.dead_doubtful { background: var(--warn-soft); color: var(--warn); }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.fact { border: 1px solid var(--line); border-radius: 14px; padding: 12px; min-width: 0; }
+.fact b { display: block; white-space: nowrap; font: 500 clamp(1.15rem, 3vw, 1.6rem) var(--f-mono); font-variant-numeric: tabular-nums; }
+.fact span { font-size: .78rem; color: var(--muted); }
+.next { border-radius: 18px; background: var(--panel); padding: 16px 18px; display: grid; gap: 10px; }
+.when { font: 700 clamp(1.25rem, 3vw, 1.75rem) var(--f-display); }
+.when small { font: 500 .8rem var(--f-mono); color: var(--muted); margin-left: 8px; }
+.meter { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.next p { margin: 0; color: var(--muted); font-size: .9rem; }
+.next p b { color: var(--ink); }
+.spark { height: 64px; }
+.spark i { background: var(--bar); border-radius: 1px 1px 0 0; min-height: 2px; }
+.spark i.in { background: var(--accent); }
+.note { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--warn-soft); color: var(--warn); font-size: .88rem; font-weight: 600; }
+.assets { color: var(--muted); font-size: .78rem; margin: 0; }
+
+@media (max-width: 700px) {
+  .dossier { grid-template-columns: 1fr; }
+  .portrait { min-height: 300px; }
+  .ep { grid-template-columns: auto minmax(0, 1fr); }
+  .chips { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .go { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="13" cy="13" r="8.5"/><path d="M19.5 19.5 28 28"/><path d="M9 13h8M13 9v8" stroke-width="2"/></svg>
+      Conan Forecast
+    </div>
+    <div class="range" id="range"></div>
+  </header>
+
+  <section class="hero" aria-labelledby="h1">
+    <h1 id="h1">The next 100 episodes of Detective Conan</h1>
+    <p id="lead"></p>
+    <button class="go" id="go" type="button">
+      <span>See the predictions<small>for the next 100 episodes</small></span>
+      <kbd>Press Enter ↵</kbd>
+    </button>
+
+    <div id="results" hidden>
+      <div class="stats" id="stats"></div>
+      <p class="foot">These are averages over 200 simulated futures, not facts. Search a character below to see when they are most likely to appear.</p>
+    </div>
+  </section>
+
+  <section class="finder" aria-labelledby="h2f">
+    <h2 class="sec" id="h2f">Character file</h2>
+    <div class="guide">
+      <h3>How to type a name</h3>
+      <ol>
+        <li>Write the English name in lowercase.</li>
+        <li>Use an underscore instead of a space, like <code>kaito_kid</code> or <code>akai_subaru</code>.</li>
+        <li>A first name or a code name is usually enough: <code>heiji</code>, <code>gin</code>, <code>bourbon</code>.</li>
+      </ol>
+      <div class="try" id="try"><span>Try</span></div>
+      <details class="index">
+        <summary>Show all names</summary>
+        <div class="idx" id="idx"></div>
+      </details>
+    </div>
+
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sug" aria-autocomplete="list" placeholder="heiji, kaito_kid, akai_subaru ..." aria-label="Search for a character">
+      <ul class="sug" id="sug" role="listbox" hidden></ul>
+    </div>
+    <p class="msg" id="msg" hidden></p>
+
+    <article class="dossier" id="card" aria-live="polite"></article>
+    <p class="assets">Portrait: <code>assets/images/&lt;name&gt;.jpg</code> · Tone: <code>assets/audio/&lt;name&gt;.mp3</code>, with the same name you type in the search box.</p>
+  </section>
+</div>
+
+<script>
+const DATA = {"start":1217,"n":100,"pc":[80,12,16,24,22,27,34,32,28,30,32,30,34,32,30,33,26,24,28,30,36,32,28,26,32,32,28,32,34,34,32,30,30,27,28,29,32,36,34,31,32,34,30,32,36,33,26,27,32,30,28,29,35,27,26,30,34,37,30,28,28,36,37,34,30,29,30,27,32,33,28,32,34,30,26,31,30,30,31,32,30,30,33,31,32,32,36,37,35,35,34,31,34,33,30,32,30,30,31,32],"chars":[{"k":"conan","n":"Conan Edogawa","g":"Main cast","s":"alive","tot":1213,"l50":50,"last":1216,"w":[1217,1217,100.0],"p100":100.0,"e100":99.1,"pr":[100,100,100,100,99,100,99,100,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,100,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,100,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,98,99,99,99,99,99,99,98,99,99,99,99,99,99,99,98,99,99,99,99,99,99,99,99]},{"k":"shinichi","n":"Shinichi Kudo","g":"Main cast","s":"alive","tot":27,"l50":0,"last":1085,"w":[1223,1227,4.5],"p100":40.0,"e100":1.2,"pr":[0,0,0,1,1,1,1,1,1,1,2,2,1,1,1,2,0,1,1,1,1,1,2,1,1,1,0,2,1,2,1,1,1,1,1,1,1,1,2,1,2,2,2,1,1,1,0,1,2,1,2,1,1,0,1,1,1,2,1,1,1,1,2,1,1,1,2,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,1,1,1,1,2,1,2,1,1,1,1,1]},{"k":"ran","n":"Ran Mouri","g":"Main cast","s":"alive","tot":874,"l50":30,"last":1216,"w":[1217,1217,78.5],"p100":100.0,"e100":50.9,"pr":[76,41,46,46,44,46,51,50,52,50,50,49,51,53,50,51,51,52,51,54,51,54,51,54,52,53,51,51,52,49,51,49,51,52,53,54,50,54,53,52,53,50,52,52,52,52,51,51,51,50,48,47,50,50,49,50,49,50,50,50,50,51,50,51,49,46,49,50,48,49,49,49,51,52,48,51,49,49,49,49,49,48,49,48,49,49,47,48,46,48,46,47,49,47,45,47,47,47,47,44]},{"k":"kogoro","n":"Kogoro Mouri","g":"Main cast","s":"alive","tot":846,"l50":30,"last":1216,"w":[1217,1217,82.5],"p100":100.0,"e100":59.7,"pr":[78,59,62,61,62,62,59,62,59,63,62,63,63,63,66,60,62,63,62,60,61,61,62,65,63,65,64,62,63,61,59,62,64,62,62,62,61,60,62,60,61,60,58,61,57,59,61,62,60,61,59,62,60,61,60,60,55,58,60,60,62,62,58,58,58,61,59,60,59,60,58,58,58,58,57,56,57,59,60,60,57,56,58,58,57,59,58,60,61,55,58,56,56,58,60,59,56,56,57,57]},{"k":"agasa","n":"Dr. Hiroshi Agasa","g":"Main cast","s":"alive","tot":320,"l50":8,"last":1207,"w":[1217,1221,43.0],"p100":100.0,"e100":15.1,"pr":[10,13,15,18,16,18,18,17,16,16,14,13,14,15,16,17,14,14,15,15,15,13,13,16,17,17,16,16,15,16,18,14,14,13,16,15,16,17,15,16,16,17,17,16,18,15,13,17,13,15,16,17,15,15,13,15,16,17,15,15,12,18,15,14,14,16,16,15,17,16,14,14,16,14,13,14,13,14,14,15,16,15,16,14,15,17,15,14,14,17,17,14,13,15,15,14,14,16,13,16]},{"k":"haibara","n":"Ai Haibara","g":"Detective Boys","s":"alive","tot":468,"l50":19,"last":1207,"w":[1217,1221,83.0],"p100":100.0,"e100":39.4,"pr":[19,38,40,38,35,40,41,41,38,39,40,42,42,40,40,40,41,39,39,37,39,39,39,39,42,39,41,39,43,40,39,41,40,40,40,42,41,40,43,40,41,41,41,40,39,42,41,38,40,40,39,40,41,41,39,40,39,40,41,37,40,40,40,39,38,39,38,38,39,39,38,38,37,37,39,38,39,40,39,41,41,41,35,38,41,37,40,38,39,42,40,38,40,41,40,42,40,41,40,38]},{"k":"ayumi","n":"Ayumi Yoshida","g":"Detective Boys","s":"alive","tot":494,"l50":18,"last":1207,"w":[1217,1220,78.5],"p100":100.0,"e100":40.7,"pr":[19,41,40,40,38,41,41,41,39,44,41,42,44,42,39,43,42,39,43,41,43,44,44,44,44,40,43,44,43,42,44,44,43,44,43,41,43,43,41,41,43,42,44,45,42,41,43,42,40,41,41,40,41,42,40,41,41,41,39,41,42,39,40,40,38,41,43,41,42,40,41,40,38,38,40,37,38,40,38,42,41,41,39,41,40,41,40,40,41,41,39,41,42,40,39,39,40,41,43,42]},{"k":"mitsuhiko","n":"Mitsuhiko Tsuburaya","g":"Detective Boys","s":"alive","tot":486,"l50":17,"last":1207,"w":[1217,1220,84.0],"p100":100.0,"e100":41.0,"pr":[21,48,46,46,46,47,44,47,44,44,44,44,45,39,40,39,43,41,44,43,43,47,44,43,44,42,41,42,42,41,42,43,42,40,41,40,42,40,42,39,40,41,42,43,41,39,41,40,41,40,41,39,37,39,39,39,41,42,41,39,39,39,39,43,41,40,39,40,39,41,40,39,39,38,40,42,38,37,38,41,39,40,41,39,41,40,40,40,40,40,39,42,40,39,40,40,40,42,40,40]},{"k":"genta","n":"Genta Kojima","g":"Detective Boys","s":"alive","tot":486,"l50":17,"last":1207,"w":[1217,1220,83.0],"p100":100.0,"e100":41.2,"pr":[21,47,47,46,45,46,45,43,45,44,44,44,46,42,42,43,43,42,42,43,44,44,41,41,43,41,45,44,41,42,41,40,42,43,42,40,38,38,42,43,42,41,41,40,40,41,42,43,42,40,40,40,39,38,40,41,39,41,41,40,39,39,40,38,39,38,40,42,39,39,37,37,41,40,37,40,40,39,40,38,39,40,40,39,39,42,40,40,41,40,40,41,39,40,39,42,41,41,41,39]},{"k":"megure","n":"Inspector Juzo Megure","g":"Police","s":"alive","tot":634,"l50":26,"last":1213,"w":[1217,1219,73.5],"p100":100.0,"e100":47.8,"pr":[21,49,51,47,49,48,46,50,49,47,47,50,49,46,50,49,49,51,47,48,48,47,49,48,50,47,50,49,47,48,46,48,51,49,48,48,50,50,50,48,49,49,53,50,51,48,50,48,50,48,48,48,49,48,50,48,50,47,51,48,50,49,49,49,48,49,47,49,47,49,48,49,49,47,48,47,49,47,49,47,49,48,46,49,47,47,45,49,48,45,46,45,47,46,46,47,47,45,45,48]},{"k":"takagi","n":"Wataru Takagi","g":"Police","s":"alive","tot":653,"l50":27,"last":1213,"w":[1217,1219,88.0],"p100":100.0,"e100":60.1,"pr":[29,58,62,60,60,57,58,59,63,60,59,60,57,57,58,58,60,61,61,59,59,58,61,61,62,58,60,59,60,59,60,59,60,64,63,62,62,61,58,60,62,59,64,61,63,62,61,59,59,59,60,59,58,64,62,61,61,58,61,62,61,60,59,62,60,61,60,62,58,59,60,61,60,59,61,62,61,61,63,62,60,61,62,60,62,59,59,61,60,59,59,61,59,60,63,59,58,59,60,58]},{"k":"sato","n":"Miwako Sato","g":"Police","s":"alive","tot":164,"l50":9,"last":1212,"w":[1217,1221,42.5],"p100":100.0,"e100":16.3,"pr":[6,11,13,16,17,18,17,16,18,18,17,17,17,17,18,17,18,18,17,17,16,16,16,16,18,16,17,15,16,17,17,15,15,17,17,16,16,16,18,18,16,16,17,16,16,15,16,17,16,17,16,16,17,16,18,17,16,16,16,16,13,18,17,16,15,16,18,16,15,17,16,16,16,17,14,16,16,17,16,17,17,17,17,17,18,16,17,17,16,16,16,14,15,16,16,16,17,17,15,15]},{"k":"shiratori","n":"Ninzaburo Shiratori","g":"Police","s":"alive","tot":74,"l50":2,"last":1209,"w":[1222,1226,11.5],"p100":88.0,"e100":4.2,"pr":[2,1,2,5,3,3,4,4,5,5,5,3,3,5,4,4,4,2,2,4,5,4,3,5,4,5,5,6,4,6,3,4,3,4,4,4,4,5,4,4,4,4,4,5,4,4,3,3,5,4,4,4,4,4,4,5,5,6,3,4,5,5,4,5,4,4,3,4,4,4,4,4,5,3,4,4,3,4,4,4,3,4,4,5,5,5,5,5,3,3,5,6,7,7,6,5,4,4,4,5]},{"k":"chiba","n":"Kazunobu Chiba","g":"Police","s":"alive","tot":316,"l50":13,"last":1213,"w":[1217,1221,88.0],"p100":100.0,"e100":35.6,"pr":[15,40,45,44,38,37,36,37,36,36,34,36,34,33,33,35,36,35,37,36,36,36,37,36,37,34,35,38,35,34,35,33,34,35,35,34,35,36,35,35,37,35,35,34,34,35,34,35,36,36,34,35,34,36,38,37,37,35,34,37,36,34,34,37,36,34,34,34,37,34,35,37,40,39,36,34,37,37,36,36,35,38,38,37,37,38,37,37,35,34,35,37,35,37,35,38,37,35,38,38]},{"k":"yumi","n":"Yumi Miyamoto","g":"Police","s":"alive","tot":64,"l50":2,"last":1185,"w":[1217,1221,14.5],"p100":89.5,"e100":4.0,"pr":[2,2,2,4,5,5,5,3,5,5,5,4,5,3,3,5,3,4,3,4,5,5,2,3,5,5,5,6,5,5,5,4,6,4,5,4,4,5,4,4,4,4,4,4,5,4,6,4,3,3,6,4,5,2,2,4,6,3,3,4,3,6,5,5,4,6,5,5,5,6,4,3,4,4,4,4,3,3,4,4,4,4,4,4,4,5,5,5,4,6,4,4,5,5,5,4,3,3,3,4]},{"k":"naeko","n":"Naeko Miike","g":"Police","s":"alive","tot":27,"l50":0,"last":1131,"w":[1226,1230,14.0],"p100":77.0,"e100":2.8,"pr":[2,1,1,3,2,2,2,2,2,4,5,6,6,7,6,3,1,2,1,1,2,1,1,1,2,2,2,2,2,1,2,2,3,2,2,2,3,3,3,2,2,3,3,4,3,2,2,3,3,3,3,3,2,4,2,2,3,3,2,2,2,3,3,4,4,2,2,3,3,4,2,4,4,3,3,5,3,4,3,3,5,4,4,4,2,3,4,5,3,4,3,2,3,3,2,2,2,3,3,3]},{"k":"matsumoto","n":"Kiyonaga Matsumoto","g":"Police","s":"alive","tot":19,"l50":0,"last":683,"w":[1256,1259,2.0],"p100":10.5,"e100":0.3,"pr":[0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,1,0,1,0,1,0,1,0,0,1,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1,0,0,0,1,1,0,0,0,0,1,0,1,0,0,1,0,1,0,0,1,0,0,0,0,0]},{"k":"kuroda","n":"Hyoue Kuroda","g":"Police","s":"alive","tot":25,"l50":3,"last":1172,"w":[1228,1232,11.5],"p100":80.0,"e100":4.2,"pr":[2,1,3,5,4,4,7,7,4,3,4,5,7,5,4,7,4,5,4,4,5,3,4,5,4,6,4,6,7,6,6,5,4,5,4,5,7,8,7,5,5,5,5,5,6,5,4,6,6,4,3,3,6,7,5,4,3,4,2,3,2,3,3,4,3,2,3,4,5,4,4,3,5,3,3,3,3,4,3,4,4,3,5,4,5,3,5,4,3,5,4,2,3,3,5,4,3,2,4,4]},{"k":"yamato","n":"Kansuke Yamato","g":"Police","s":"alive","tot":24,"l50":0,"last":1124,"w":[1219,1223,13.5],"p100":66.5,"e100":2.4,"pr":[2,1,2,4,5,6,8,4,3,3,2,1,2,3,1,1,1,1,1,2,2,1,2,2,1,1,2,2,3,1,2,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,2,2,2,1,2,1,3,2,3,3,2,2,2,3,3,2,3,2,2,2,1,2,3,3,2,2,2,3,4,4,5,4,3,5,4,3,2,2,3,2,2,2,2,4,2,2,4,3,3,3,2,2,3,2]},{"k":"yui_uehara","n":"Yui Uehara","g":"Police","s":"alive","tot":23,"l50":0,"last":1161,"w":[1223,1227,9.0],"p100":70.5,"e100":2.7,"pr":[2,1,1,2,3,3,4,4,4,4,3,4,3,3,3,3,3,2,2,3,4,3,2,4,3,3,3,4,4,4,3,5,2,3,3,3,3,4,3,2,3,4,4,4,2,2,1,2,2,1,2,2,3,4,4,4,3,2,2,3,2,2,3,3,2,3,3,3,3,3,2,3,3,3,3,2,1,3,2,2,3,6,3,2,3,3,2,3,2,4,3,2,2,2,2,2,2,3,3,3]},{"k":"takaaki_morofushi","n":"Takaaki Morofushi (Komei)","g":"Police","s":"alive","tot":19,"l50":0,"last":1161,"w":[1220,1224,10.5],"p100":69.0,"e100":2.9,"pr":[2,1,2,2,3,2,2,4,4,3,4,3,3,2,3,3,3,4,4,3,4,3,2,4,3,4,3,4,4,4,3,3,3,3,3,3,3,3,3,3,3,2,2,2,4,2,2,3,2,2,2,2,2,3,4,4,5,5,2,3,3,3,5,4,3,2,3,2,3,3,2,2,4,2,2,3,2,4,3,2,2,4,3,4,3,2,3,3,2,4,4,2,2,3,3,4,3,2,2,2]},{"k":"heizo_hattori","n":"Heizo Hattori","g":"Police","s":"alive","tot":20,"l50":3,"last":1216,"w":[1217,1217,50.0],"p100":81.5,"e100":3.2,"pr":[49,6,3,2,2,3,4,3,2,2,3,2,3,4,2,3,3,4,2,2,3,3,2,2,3,3,2,2,2,2,2,4,3,2,2,3,3,4,5,2,3,4,4,4,3,3,3,3,3,3,2,3,4,4,2,2,2,3,3,4,3,3,2,2,1,2,2,1,3,3,2,4,2,3,3,2,3,3,2,4,1,2,3,3,2,2,3,4,3,2,2,4,2,3,2,3,2,2,2,3]},{"k":"ginshiro_toyama","n":"Ginshiro Toyama","g":"Police","s":"alive","tot":11,"l50":3,"last":1216,"w":[1217,1217,54.5],"p100":84.0,"e100":3.3,"pr":[49,6,3,2,2,2,3,2,2,2,3,3,4,3,3,4,2,4,2,3,2,2,3,2,2,2,2,3,3,2,3,2,3,2,2,2,3,3,3,3,3,4,4,4,3,3,3,4,3,4,2,3,2,2,1,3,3,2,3,3,1,3,2,3,1,3,2,2,2,3,4,3,2,3,3,4,2,3,3,2,4,3,3,4,2,2,4,3,3,4,2,3,4,3,2,2,2,2,3,3]},{"k":"otaki","n":"Goro Otaki","g":"Police","s":"alive","tot":28,"l50":3,"last":1216,"w":[1217,1217,55.5],"p100":88.0,"e100":3.6,"pr":[49,5,3,3,2,2,3,2,3,4,3,3,3,3,3,3,2,3,2,2,3,4,2,2,3,4,4,3,3,3,4,4,2,3,4,3,4,2,2,2,3,2,3,3,2,2,2,2,4,4,2,3,5,3,1,2,5,3,4,2,2,2,3,3,3,3,4,3,4,2,2,3,4,2,3,3,5,2,3,2,2,2,3,2,3,3,4,3,3,3,3,2,2,3,3,4,3,4,3,4]},{"k":"sango_yokomizo","n":"Sango Yokomizo","g":"Police","s":"alive","tot":53,"l50":0,"last":1149,"w":[1244,1248,14.5],"p100":80.0,"e100":3.0,"pr":[2,1,1,3,3,4,3,5,4,4,3,4,4,2,3,2,2,3,3,4,4,3,3,3,3,2,1,5,5,7,5,7,6,2,2,2,2,3,3,3,1,2,3,3,2,3,1,2,2,2,2,2,3,3,3,3,3,3,2,3,3,3,3,2,2,2,3,2,2,4,3,3,2,2,2,3,2,2,1,3,4,4,3,3,3,4,3,3,3,3,4,2,3,2,3,3,2,3,3,3]},{"k":"jugo_yokomizo","n":"Jugo Yokomizo","g":"Police","s":"alive","tot":28,"l50":2,"last":1185,"w":[1226,1230,17.0],"p100":77.5,"e100":3.0,"pr":[2,1,1,2,2,3,3,2,2,3,4,5,3,4,4,5,4,3,3,3,3,3,3,2,2,4,3,3,3,4,3,3,3,3,3,2,3,3,3,2,2,3,3,4,3,4,5,2,3,4,3,3,3,2,2,2,2,4,3,3,2,3,3,2,3,3,4,3,4,2,3,2,3,4,3,3,2,3,2,3,2,4,3,2,4,2,3,2,3,3,2,4,4,4,2,3,4,3,2,4]},{"k":"yamamura","n":"Misao Yamamura","g":"Police","s":"alive","tot":63,"l50":0,"last":1124,"w":[1219,1223,22.0],"p100":81.5,"e100":3.1,"pr":[2,1,4,7,8,6,9,7,3,3,2,3,3,3,2,3,2,2,2,2,4,3,4,3,3,3,3,3,3,4,3,2,3,3,2,2,3,3,2,2,2,4,3,4,3,2,2,3,3,3,2,2,3,3,3,3,3,4,3,3,3,4,4,3,2,3,4,3,3,2,3,3,3,2,3,3,3,4,3,4,2,3,2,2,3,4,4,3,3,5,4,3,4,3,3,3,2,2,4,4]},{"k":"chihaya_hagiwara","n":"Chihaya Hagiwara","g":"Police","s":"alive","tot":8,"l50":3,"last":1197,"w":[1226,1230,12.0],"p100":78.5,"e100":2.7,"pr":[2,1,2,2,2,5,4,2,2,2,4,5,3,3,3,2,3,2,3,2,4,3,2,1,3,3,2,2,3,4,3,2,2,2,4,3,2,2,2,3,3,3,3,3,3,3,2,2,2,3,3,2,2,3,3,3,3,4,2,3,3,3,4,3,4,3,3,2,3,3,3,3,2,2,2,2,3,4,3,4,3,3,4,3,2,2,3,3,5,4,3,2,2,2,3,2,3,2,4,3]},{"k":"jinpei_matsuda","n":"Jinpei Matsuda","g":"Police Academy","s":"dead","tot":18,"l50":0,"last":1116,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"kenji_hagiwara","n":"Kenji Hagiwara","g":"Police Academy","s":"dead","tot":11,"l50":0,"last":1116,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"wataru_date","n":"Wataru Date","g":"Police Academy","s":"dead","tot":12,"l50":0,"last":1110,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"gin","n":"Gin","g":"Black Organization","s":"alive","tot":130,"l50":0,"last":1110,"w":[1236,1240,7.0],"p100":78.0,"e100":3.3,"pr":[0,0,1,1,1,1,3,3,2,2,2,3,2,2,1,2,3,2,2,2,3,5,2,3,4,2,3,3,4,3,3,2,3,2,3,2,3,4,3,3,4,2,3,2,2,2,2,4,3,3,4,3,3,4,3,3,4,4,3,4,4,6,7,6,7,4,5,5,5,4,2,4,3,2,3,4,3,4,5,4,6,5,5,5,6,6,6,7,5,5,4,5,4,4,4,3,3,2,2,3]},{"k":"vodka","n":"Vodka","g":"Black Organization","s":"alive","tot":127,"l50":0,"last":1080,"w":[1242,1246,9.5],"p100":67.0,"e100":3.0,"pr":[0,0,1,1,2,2,2,1,2,2,3,2,2,1,2,2,1,1,4,3,3,3,3,2,3,3,3,4,6,5,6,5,5,4,5,5,5,6,3,5,4,4,4,3,3,3,3,3,5,4,4,3,5,3,4,4,5,7,4,3,3,3,4,2,3,3,3,2,3,3,2,3,3,4,4,3,3,3,2,3,4,3,2,3,3,4,4,4,4,3,4,3,3,4,3,2,3,4,4,3]},{"k":"vermouth","n":"Vermouth","g":"Black Organization","s":"alive","tot":128,"l50":1,"last":1167,"w":[1241,1245,14.0],"p100":91.5,"e100":5.3,"pr":[2,1,2,4,3,3,5,6,5,4,5,4,5,5,4,5,4,2,5,4,5,5,4,6,7,9,8,7,9,8,6,5,5,5,4,5,5,6,7,6,6,6,6,6,5,6,5,4,7,6,5,6,6,5,4,4,4,5,4,4,4,5,5,7,6,5,5,5,6,6,3,4,5,4,4,4,6,6,5,5,5,5,6,6,4,6,5,7,9,6,8,6,8,7,4,4,5,5,7,6]},{"k":"bourbon_amuro","n":"Tooru Amuro (Bourbon, Rei Furuya)","g":"Black Organization","s":"alive","tot":86,"l50":7,"last":1205,"w":[1223,1227,25.0],"p100":100.0,"e100":9.3,"pr":[4,3,5,8,9,10,10,13,12,10,11,11,13,10,9,12,10,8,9,10,12,12,12,9,10,9,7,11,9,9,10,9,9,8,9,9,11,10,10,11,10,11,11,9,13,13,10,8,9,7,8,9,8,9,9,11,11,9,10,9,8,11,11,11,11,11,10,7,7,9,8,12,11,7,6,9,7,8,10,9,7,8,10,11,9,9,12,11,8,9,10,12,10,9,8,9,9,8,9,8]},{"k":"chianti","n":"Chianti","g":"Black Organization","s":"alive","tot":38,"l50":1,"last":1167,"w":[1227,1230,10.0],"p100":80.5,"e100":3.9,"pr":[2,0,1,3,2,3,4,4,3,3,4,4,7,6,5,5,3,4,5,5,6,6,4,3,4,5,5,4,5,4,4,4,5,4,4,5,5,4,6,4,4,5,3,5,5,3,5,3,4,4,4,3,5,4,3,3,3,4,5,4,3,3,3,4,3,4,3,2,2,3,2,3,5,4,3,4,4,3,4,5,3,5,5,4,4,6,6,4,5,5,5,4,4,3,4,6,4,4,2,4]},{"k":"korn","n":"Korn","g":"Black Organization","s":"alive","tot":38,"l50":1,"last":1167,"w":[1249,1252,9.5],"p100":78.5,"e100":4.2,"pr":[2,0,1,4,2,5,3,5,4,4,3,3,4,6,6,4,4,2,5,4,5,5,4,4,6,4,4,6,5,5,5,4,4,6,4,6,7,6,5,3,4,4,4,3,5,5,4,3,3,6,4,5,5,4,3,3,3,4,3,2,2,4,5,4,3,6,2,4,3,4,4,5,4,3,3,4,4,3,3,4,6,4,3,4,4,4,4,5,5,5,6,4,6,4,3,3,5,3,5,4]},{"k":"rum_wakita","n":"Kanenori Wakita (Rum)","g":"Black Organization","s":"alive","tot":30,"l50":3,"last":1170,"w":[1227,1231,14.0],"p100":88.5,"e100":5.9,"pr":[2,1,2,4,4,6,9,4,4,5,5,5,5,7,7,7,6,5,6,6,7,6,5,6,7,5,6,6,6,8,6,6,5,5,5,7,6,5,7,7,5,6,5,5,6,8,5,6,5,5,6,6,10,8,5,6,6,7,5,5,7,9,9,7,6,4,5,6,7,6,5,7,6,6,4,6,6,5,5,6,5,4,4,4,5,4,6,8,5,6,6,6,7,6,5,6,6,4,6,9]},{"k":"kir_rena","n":"Rena Mizunashi (Kir)","g":"Black Organization","s":"alive","tot":51,"l50":0,"last":1079,"w":[1265,1269,8.5],"p100":42.0,"e100":1.4,"pr":[0,0,0,1,1,1,1,2,1,1,2,1,1,1,1,1,0,1,1,1,1,2,1,1,2,2,2,1,1,1,2,2,1,1,2,1,1,1,2,1,1,1,1,1,1,2,2,2,3,4,3,3,4,3,2,3,4,2,2,2,1,2,1,2,2,1,2,1,2,2,1,1,1,1,1,1,1,1,2,2,2,1,1,1,1,1,1,1,1,1,2,1,2,1,1,2,1,2,1,1]},{"k":"pisco","n":"Pisco","g":"Black Organization","s":"dead","tot":15,"l50":0,"last":783,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"tequila","n":"Tequila","g":"Black Organization","s":"dead","tot":6,"l50":0,"last":311,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"calvados","n":"Calvados","g":"Black Organization","s":"dead","tot":2,"l50":0,"last":425,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"irish","n":"Irish","g":"Black Organization","s":"dead","tot":0,"l50":0,"last":null,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"curacao","n":"Curacao","g":"Black Organization","s":"alive","tot":0,"l50":0,"last":null,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"atsushi_miyano","n":"Atsushi Miyano","g":"Black Organization","s":"dead","tot":8,"l50":0,"last":995,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"elena_miyano","n":"Elena Miyano","g":"Black Organization","s":"dead","tot":17,"l50":0,"last":1029,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"akemi_miyano","n":"Akemi Miyano","g":"Black Organization","s":"dead_doubtful","tot":36,"l50":0,"last":1094,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"suguru_itakura","n":"Suguru Itakura","g":"Black Organization","s":"dead","tot":11,"l50":0,"last":704,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"kiichiro_numabuchi","n":"Kiichiro Numabuchi","g":"Black Organization","s":"alive","tot":3,"l50":0,"last":290,"w":[1278,1282,2.5],"p100":14.0,"e100":0.4,"pr":[0,0,0,0,1,0,0,0,0,1,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,0,2,1,0,0,0,0,1,0,0,0,1,0,1,0,1,1,1,0,1,1,1,1,0,0,0,0,0,1,0,1,0,0,0,1]},{"k":"renya_karasuma","n":"Renya Karasuma","g":"Black Organization","s":"alive","tot":10,"l50":0,"last":1072,"w":[1256,1260,8.5],"p100":49.5,"e100":2.0,"pr":[1,0,1,1,1,1,2,2,1,1,2,1,2,1,1,2,2,2,3,2,3,2,2,3,3,3,2,3,3,3,2,2,1,2,1,2,1,2,1,3,4,3,4,5,4,3,2,3,2,3,2,2,2,1,1,1,2,2,3,2,1,2,2,2,2,1,2,2,2,2,1,2,2,3,1,2,2,1,1,1,2,3,1,1,1,1,2,2,3,2,4,3,2,2,1,3,1,2,3,1]},{"k":"rikumichi_kusuda","n":"Rikumichi Kusuda","g":"Black Organization","s":"dead","tot":22,"l50":0,"last":783,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"akai_subaru","n":"Shuichi Akai (Subaru Okiya)","g":"FBI, CIA, PSB","s":"alive","tot":162,"l50":2,"last":1187,"w":[1222,1226,18.0],"p100":97.5,"e100":7.9,"pr":[3,2,3,6,6,8,10,9,8,9,10,9,9,9,8,9,8,7,8,8,11,11,9,8,9,10,10,8,9,8,9,10,8,8,9,8,8,8,10,9,8,7,8,7,12,11,9,8,8,9,8,10,9,7,7,9,8,10,7,8,6,10,10,9,5,6,8,8,8,7,8,8,8,7,6,9,8,9,8,10,10,10,8,8,7,6,9,9,10,10,8,6,6,6,8,7,8,8,9,7]},{"k":"jodie","n":"Jodie Starling","g":"FBI, CIA, PSB","s":"alive","tot":74,"l50":0,"last":1086,"w":[1277,1279,8.5],"p100":65.0,"e100":2.4,"pr":[1,0,1,2,2,2,2,1,2,2,1,2,2,2,2,2,1,1,2,2,2,2,2,2,3,2,2,3,2,2,2,3,3,2,2,2,3,2,2,2,3,3,3,4,4,2,2,2,2,2,2,2,3,2,3,3,3,2,2,4,3,5,8,7,6,4,3,1,2,3,2,3,3,4,3,3,3,3,2,3,2,2,3,1,2,3,3,4,3,3,4,2,2,2,2,3,1,2,2,3]},{"k":"james_black","n":"James Black","g":"FBI, CIA, PSB","s":"alive","tot":52,"l50":0,"last":1086,"w":[1272,1276,9.5],"p100":74.0,"e100":2.6,"pr":[1,1,1,2,1,1,2,1,2,2,2,3,2,2,3,3,2,2,2,3,3,3,1,2,3,2,1,2,2,3,2,2,2,3,4,4,4,4,3,2,3,3,4,4,3,3,2,3,3,2,2,3,2,2,3,3,6,5,4,4,6,5,6,4,3,2,3,2,2,1,2,3,4,3,1,2,2,2,3,1,1,2,3,3,2,3,3,3,3,3,2,3,3,1,2,3,2,2,2,3]},{"k":"camel","n":"Andre Camel","g":"FBI, CIA, PSB","s":"alive","tot":43,"l50":0,"last":1086,"w":[1251,1255,9.0],"p100":63.0,"e100":2.4,"pr":[1,0,1,1,1,1,2,2,2,2,3,2,2,2,3,3,1,3,1,2,2,1,1,1,2,2,1,2,2,3,2,2,2,2,2,3,3,4,5,4,2,3,4,4,3,3,2,2,2,3,2,2,2,2,3,4,2,3,2,3,2,5,4,5,2,2,4,2,2,2,3,2,3,3,2,2,2,3,4,2,3,2,2,1,1,2,2,3,4,4,1,4,3,2,2,3,3,3,2,2]},{"k":"eisuke_hondo","n":"Eisuke Hondo","g":"FBI, CIA, PSB","s":"alive","tot":27,"l50":0,"last":508,"w":[1234,1238,2.5],"p100":14.5,"e100":0.4,"pr":[0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0,0,1,0,1,1,1,0,0,0,1,0,0,1,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,1,0,0,0,1,1,0,1,0,1,0,0,0,0,1,0,0,1,0,1,0,0,1,0,1,1,1,1,0,0,0,0,1,1,1,1,1,0,1,1,1,1,1]},{"k":"kazami","n":"Yuya Kazami","g":"FBI, CIA, PSB","s":"alive","tot":9,"l50":2,"last":1172,"w":[1221,1225,9.5],"p100":73.0,"e100":2.9,"pr":[2,1,2,2,2,2,3,4,3,4,3,3,4,4,3,3,3,2,3,3,3,3,3,2,2,3,2,3,3,4,3,3,2,2,2,3,3,2,2,3,3,2,3,3,4,2,3,3,3,2,3,6,4,3,4,3,4,3,2,2,3,2,2,2,2,2,2,3,3,4,3,3,3,2,2,2,2,2,5,3,2,2,3,3,3,3,3,3,3,3,4,3,3,3,3,2,4,2,4,3]},{"k":"scotch","n":"Hiromitsu Morofushi (Scotch)","g":"FBI, CIA, PSB","s":"dead","tot":14,"l50":0,"last":1124,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"ethan_hondou","n":"Ethan Hondou","g":"FBI, CIA, PSB","s":"dead","tot":14,"l50":0,"last":504,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"heiji","n":"Heiji Hattori","g":"Kansai","s":"alive","tot":148,"l50":9,"last":1216,"w":[1217,1217,66.0],"p100":99.0,"e100":8.5,"pr":[64,9,7,7,6,8,11,9,10,9,8,9,8,9,8,8,8,8,8,9,9,9,8,7,8,8,7,7,8,7,8,6,7,7,7,8,8,9,9,9,10,10,7,9,8,9,7,9,11,9,7,8,9,6,7,6,8,8,7,7,5,7,9,8,6,7,6,6,7,7,6,6,8,8,8,6,7,9,9,8,8,7,9,8,5,6,8,8,10,8,8,8,7,10,7,8,8,6,6,6]},{"k":"kazuha","n":"Kazuha Toyama","g":"Kansai","s":"alive","tot":117,"l50":9,"last":1216,"w":[1217,1217,65.0],"p100":99.0,"e100":8.1,"pr":[64,9,6,7,5,6,7,7,7,7,7,9,10,10,9,10,7,6,7,7,7,7,7,8,8,10,9,10,9,8,8,7,8,7,7,8,7,9,10,8,8,9,8,10,9,9,9,7,11,9,8,7,9,8,7,7,7,7,6,8,7,9,7,8,5,7,6,6,5,7,4,5,7,8,7,6,7,6,6,7,7,8,8,8,7,6,9,7,8,8,10,6,7,9,7,6,6,9,8,7]},{"k":"shizuka_hattori","n":"Shizuka Hattori","g":"Kansai","s":"alive","tot":6,"l50":0,"last":490,"w":[1299,1303,3.0],"p100":13.0,"e100":0.4,"pr":[0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,1,0,1,1,0,0,0,1,1,1,1,2,1,1,1,0,1,0,0,1,1,1,0,0,0,0,0]},{"k":"iori_moga","n":"Iori Muga","g":"Kansai","s":"alive","tot":17,"l50":7,"last":1216,"w":[1217,1217,61.5],"p100":93.0,"e100":5.4,"pr":[64,6,3,3,3,4,5,4,5,5,5,5,7,5,4,5,3,3,3,2,5,4,4,3,4,5,5,4,5,4,4,4,4,4,4,5,6,5,5,3,4,5,6,4,4,5,4,4,5,7,5,6,7,5,5,4,5,8,6,6,5,4,5,5,4,3,5,5,5,6,5,7,7,5,3,4,4,4,5,6,5,5,5,6,6,5,4,5,3,6,5,5,5,5,4,5,6,4,6,3]},{"k":"momiji","n":"Momiji Ooka","g":"Kansai","s":"alive","tot":22,"l50":7,"last":1216,"w":[1217,1217,64.0],"p100":98.0,"e100":5.2,"pr":[64,7,4,5,3,4,4,4,6,6,6,7,4,6,4,7,4,2,3,4,6,5,4,4,8,3,3,5,6,4,4,4,3,2,3,4,6,5,4,4,4,6,5,4,4,4,5,4,6,4,3,5,5,2,4,6,4,6,5,6,4,5,6,5,4,3,4,3,5,4,4,4,6,4,4,6,5,5,5,5,7,5,6,4,5,6,6,4,4,6,5,4,5,5,5,5,4,3,8,5]},{"k":"kaito_kid","n":"Kaito Kid (Kaito Kuroba)","g":"Kaito Kid","s":"alive","tot":54,"l50":3,"last":1194,"w":[1219,1223,9.5],"p100":91.0,"e100":4.5,"pr":[2,1,2,3,3,3,5,4,3,3,4,3,4,5,4,5,4,4,5,5,4,5,4,5,5,5,5,5,5,4,4,4,3,5,3,5,5,6,5,3,4,6,7,7,5,6,6,4,5,3,5,5,4,4,4,5,4,7,6,6,4,6,5,4,4,4,5,3,5,5,4,3,5,6,6,6,4,4,5,5,4,4,4,5,5,5,6,7,8,6,4,4,4,5,4,5,5,4,4,5]},{"k":"nakamori","n":"Inspector Ginzo Nakamori","g":"Kaito Kid","s":"alive","tot":32,"l50":2,"last":1194,"w":[1226,1230,11.0],"p100":86.5,"e100":3.8,"pr":[2,1,2,3,1,4,3,3,2,3,4,3,5,5,5,5,3,5,4,3,7,3,3,4,5,5,3,5,5,5,5,4,4,2,4,4,3,4,4,4,3,5,4,3,5,5,3,3,4,3,4,4,4,3,4,5,6,5,3,4,3,3,4,3,2,3,3,4,4,5,4,4,4,5,4,6,3,3,4,4,4,3,3,3,4,3,5,5,4,3,3,3,3,3,4,3,4,3,4,4]},{"k":"jirokichi","n":"Jirokichi Suzuki","g":"Kaito Kid","s":"alive","tot":28,"l50":2,"last":1194,"w":[1231,1235,9.5],"p100":80.0,"e100":3.0,"pr":[2,1,2,2,2,3,4,3,3,2,2,3,3,4,3,4,3,3,4,3,3,4,2,3,3,3,2,2,4,3,3,4,4,4,4,3,4,3,5,5,2,2,2,3,3,5,3,2,3,3,4,3,3,3,3,4,4,4,3,2,3,4,4,3,3,2,3,4,3,2,2,2,3,3,3,3,3,2,3,2,3,4,4,4,2,3,3,4,3,4,2,3,3,4,4,2,3,2,3,3]},{"k":"konosuke_jii","n":"Konosuke Jii","g":"Kaito Kid","s":"alive","tot":9,"l50":0,"last":725,"w":[1217,1220,2.0],"p100":14.0,"e100":0.4,"pr":[0,0,0,0,1,0,1,1,0,0,1,0,0,0,0,0,0,0,0,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1,0,1,1,0,0,1,1,1,0,0,1,0,1,0,1,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,1,1,1,0,1,1,0,1,0]},{"k":"saguru_hakuba","n":"Saguru Hakuba","g":"Kaito Kid","s":"alive","tot":4,"l50":2,"last":1194,"w":[1289,1293,7.0],"p100":62.5,"e100":1.9,"pr":[1,0,1,1,1,1,2,2,1,2,2,1,2,1,2,1,2,1,2,2,1,1,1,1,2,1,2,1,1,1,1,2,1,2,2,1,1,3,3,2,2,2,1,2,2,2,2,2,2,2,2,3,4,2,2,2,3,3,3,2,2,2,3,2,3,1,2,2,3,3,1,3,3,3,2,5,3,2,1,2,2,1,2,2,3,2,2,2,2,3,2,2,3,2,3,2,2,2,3,2]},{"k":"toichi_kuroba","n":"Toichi Kuroba","g":"Kaito Kid","s":"alive","tot":9,"l50":0,"last":473,"w":[1219,1223,2.0],"p100":14.0,"e100":0.3,"pr":[0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,1,0,1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,0]},{"k":"aoko_nakamori","n":"Aoko Nakamori","g":"Kaito Kid","s":"alive","tot":3,"l50":1,"last":1187,"w":[1247,1251,3.0],"p100":21.5,"e100":0.6,"pr":[0,0,0,0,0,0,0,0,1,0,0,1,1,0,0,1,1,0,0,0,1,0,0,0,1,1,1,1,1,0,0,1,2,1,0,1,1,0,0,1,1,0,0,1,1,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,2,1,0,0,1,0,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1]},{"k":"yusaku_kudo","n":"Yusaku Kudo","g":"Family","s":"alive","tot":70,"l50":3,"last":1187,"w":[1225,1229,14.5],"p100":85.5,"e100":4.6,"pr":[2,1,2,3,4,4,4,5,5,4,6,5,7,7,5,4,5,4,3,5,6,6,5,4,4,6,5,5,5,4,5,5,4,4,4,3,4,6,5,4,5,7,5,6,5,4,4,6,5,5,4,4,4,4,3,3,4,6,6,4,4,5,6,6,5,4,3,3,4,4,3,4,3,5,4,6,4,4,4,4,5,6,5,5,5,5,5,5,7,4,7,5,4,4,5,5,5,4,4,5]},{"k":"yukiko_kudo","n":"Yukiko Kudo","g":"Family","s":"alive","tot":94,"l50":5,"last":1205,"w":[1223,1227,17.5],"p100":97.5,"e100":6.8,"pr":[4,3,4,4,5,7,6,8,7,6,9,9,9,7,8,6,8,6,6,8,9,7,8,7,8,11,8,7,9,8,8,7,7,7,8,8,9,8,9,6,8,9,6,8,9,7,8,8,7,8,5,7,10,7,7,6,6,8,7,6,7,7,7,6,6,6,6,6,7,8,6,6,4,5,6,7,7,6,4,4,5,4,6,3,6,6,9,6,5,6,7,6,8,5,6,6,6,7,5,9]},{"k":"eri_kisaki","n":"Eri Kisaki","g":"Family","s":"alive","tot":77,"l50":3,"last":1205,"w":[1219,1223,12.0],"p100":88.0,"e100":3.3,"pr":[2,2,2,4,4,4,3,4,3,2,2,3,2,3,3,3,3,3,3,3,3,3,3,4,4,4,3,4,5,4,4,4,3,3,3,4,4,4,3,3,5,4,2,5,4,4,3,3,5,3,3,3,3,2,3,3,4,4,3,2,3,5,3,3,3,2,3,2,3,3,3,4,4,3,3,3,3,3,2,3,3,4,3,5,5,6,5,5,5,3,3,3,5,5,3,4,4,4,4,3]},{"k":"midori_kuriyama","n":"Midori Kuriyama","g":"Family","s":"alive","tot":16,"l50":0,"last":902,"w":[1287,1291,3.0],"p100":20.0,"e100":0.5,"pr":[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,1,0,1,1,1,0,0,0,0,0,0,1,1,0,0,1,0,0,1,1,0,0,0,0,0,1,0,1,1,0,1,0,0,1,1,1,1,1,0,1,1,1,0,1,0,0,1,0,0,1,0,0,0,0,0,1,1,1,1]},{"k":"masumi_sera","n":"Masumi Sera","g":"Family","s":"alive","tot":92,"l50":3,"last":1205,"w":[1220,1224,15.5],"p100":92.5,"e100":5.2,"pr":[3,1,2,3,5,5,6,5,5,6,5,5,7,6,5,5,3,3,4,4,6,5,4,5,6,7,6,6,7,7,8,6,5,5,5,6,5,6,5,5,5,8,6,5,6,6,7,4,5,4,7,5,6,6,4,8,5,6,5,5,6,5,4,6,6,7,6,5,6,7,5,4,5,6,4,5,4,7,6,5,4,5,6,8,5,6,6,7,7,6,7,6,6,6,5,6,4,5,4,5]},{"k":"mary_sera","n":"Mary Sera","g":"Family","s":"alive","tot":34,"l50":1,"last":1167,"w":[1239,1243,14.5],"p100":85.0,"e100":4.8,"pr":[2,0,2,3,3,3,5,5,4,3,6,7,6,6,4,7,3,4,3,4,7,7,5,6,7,9,8,8,6,6,5,4,5,4,5,4,5,5,4,4,7,5,5,4,5,5,5,6,6,6,7,5,5,4,3,5,6,4,6,4,4,6,6,6,5,5,5,3,5,5,6,5,5,6,3,5,5,5,4,6,3,3,3,3,3,5,5,6,4,5,4,5,5,5,5,6,4,4,4,5]},{"k":"shukichi_haneda","n":"Shukichi Haneda","g":"Family","s":"alive","tot":30,"l50":1,"last":1167,"w":[1223,1227,13.5],"p100":86.0,"e100":5.0,"pr":[2,1,2,3,2,4,4,4,5,6,4,6,5,3,4,4,6,4,4,3,5,4,4,6,7,5,5,7,6,9,7,7,4,6,3,3,5,6,5,5,5,4,5,6,6,7,5,4,5,6,2,4,5,5,4,4,5,8,5,4,3,6,8,6,5,4,5,5,5,6,4,5,5,4,3,5,7,7,6,4,6,5,5,6,6,5,5,7,4,6,7,5,7,5,5,4,7,4,5,6]},{"k":"koji_haneda","n":"Koji Haneda","g":"Family","s":"dead","tot":19,"l50":3,"last":1170,"w":null,"p100":0.0,"e100":0.0,"pr":[]},{"k":"sonoko","n":"Sonoko Suzuki","g":"Everyday cast","s":"alive","tot":276,"l50":8,"last":1213,"w":[1218,1222,41.5],"p100":100.0,"e100":16.0,"pr":[9,11,12,16,14,17,20,17,20,20,17,18,16,16,15,15,15,18,16,16,18,18,16,16,17,18,16,15,13,19,17,18,17,15,15,17,16,15,15,16,16,16,14,14,17,17,16,16,18,15,16,15,16,17,16,15,18,17,16,16,17,16,17,16,14,17,16,17,16,14,17,16,17,17,16,16,15,16,18,16,15,15,14,15,16,16,16,20,19,16,16,16,15,17,14,15,15,16,16,15]},{"k":"makoto_kyogoku","n":"Makoto Kyogoku","g":"Everyday cast","s":"alive","tot":61,"l50":2,"last":1194,"w":[1227,1231,11.5],"p100":92.0,"e100":3.6,"pr":[2,2,2,3,3,3,4,2,3,4,2,4,4,4,3,5,3,4,5,3,4,3,3,3,4,4,3,3,3,3,4,4,2,3,2,3,4,4,4,5,3,3,4,4,3,4,4,3,3,4,4,4,5,3,3,4,3,3,3,3,4,4,4,4,5,5,5,3,4,4,4,4,5,6,4,6,6,4,3,2,3,3,4,5,3,2,4,3,3,2,4,3,3,3,3,4,4,4,2,3]},{"k":"azusa_enomoto","n":"Azusa Enomoto","g":"Everyday cast","s":"alive","tot":57,"l50":3,"last":1205,"w":[1221,1225,17.5],"p100":96.0,"e100":5.6,"pr":[3,3,3,4,5,6,5,5,4,7,6,5,5,5,5,5,6,5,5,5,6,5,4,8,7,8,6,7,6,5,7,5,8,8,5,6,6,7,4,5,6,6,5,6,5,6,6,10,6,7,4,6,7,5,5,6,6,4,4,4,4,5,4,5,6,5,8,5,5,6,4,6,6,7,4,5,6,4,6,7,7,6,6,4,6,7,9,8,5,4,5,4,8,5,5,6,4,5,5,5]},{"k":"yoko_okino","n":"Yoko Okino","g":"Everyday cast","s":"alive","tot":133,"l50":3,"last":1196,"w":[1231,1235,12.5],"p100":92.5,"e100":4.3,"pr":[2,3,2,4,2,4,4,4,5,5,4,6,4,4,4,5,5,5,5,5,4,4,5,4,4,5,5,4,4,5,5,4,5,5,4,3,4,3,3,3,4,5,4,3,4,3,4,5,4,4,4,5,4,2,3,4,4,5,4,5,4,5,4,4,3,4,5,4,4,5,3,3,4,4,5,5,4,5,4,5,4,3,6,4,5,4,6,5,4,4,5,5,4,4,5,4,3,5,4,5]},{"k":"araide","n":"Tomoaki Araide","g":"Everyday cast","s":"alive","tot":31,"l50":0,"last":555,"w":[1298,1301,3.5],"p100":17.5,"e100":0.3,"pr":[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,1,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1,1,0,1,1,0,1,1,1,1,0,0,0,0,0,0,0,2,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0]},{"k":"rumi_wakasa","n":"Rumi Wakasa","g":"Everyday cast","s":"alive","tot":26,"l50":3,"last":1170,"w":[1218,1222,14.0],"p100":89.0,"e100":5.6,"pr":[3,2,3,4,4,6,7,4,4,5,6,6,6,6,6,6,5,3,5,8,6,8,5,4,7,5,8,6,8,7,6,7,7,6,6,5,4,7,3,3,5,6,5,4,5,6,6,5,6,6,3,5,7,5,4,5,4,5,4,5,5,5,6,7,7,5,6,5,6,4,5,4,6,6,5,4,6,5,7,6,5,5,6,5,5,8,9,8,5,7,5,5,4,5,5,6,6,6,6,6]},{"k":"sumiko_kobayashi","n":"Sumiko Kobayashi","g":"Everyday cast","s":"alive","tot":69,"l50":4,"last":1187,"w":[1218,1222,17.5],"p100":97.0,"e100":7.3,"pr":[3,2,5,7,5,7,9,8,7,9,9,9,8,11,7,8,7,6,6,8,8,8,7,8,7,8,7,7,9,8,7,7,7,5,7,6,7,9,8,6,8,7,7,8,9,8,6,6,5,8,6,7,8,7,7,7,8,7,7,6,8,9,8,8,9,7,7,7,7,6,8,9,6,7,6,7,9,6,9,9,7,8,10,8,9,9,8,7,8,7,8,6,7,9,9,8,7,6,8,10]},{"k":"tsutomu_akai","n":"Tsutomu Akai","g":"Everyday cast","s":"alive","tot":11,"l50":1,"last":1167,"w":[1222,1226,13.0],"p100":80.5,"e100":3.9,"pr":[2,0,1,3,2,3,5,4,4,4,5,4,6,7,4,4,2,3,3,4,4,5,3,2,3,4,3,5,6,5,4,5,4,3,5,3,4,4,5,4,4,4,3,4,6,2,2,4,4,4,5,2,3,4,3,5,3,7,3,5,4,3,5,3,4,3,3,2,3,5,4,4,4,4,3,4,3,3,4,4,3,2,4,3,3,4,5,6,2,3,4,4,4,3,4,4,3,5,5,3]},{"k":"fusae_campbell","n":"Fusae Campbell","g":"Everyday cast","s":"alive","tot":2,"l50":0,"last":862,"w":[1258,1262,2.0],"p100":13.0,"e100":0.4,"pr":[0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,0,0,0,1,0,1,1,1,1,1,0,0,0,1,0,1,0,0,1,0,1,1,1,1,1,0,0,0,0,1,0,0,0,1,0,1,1,0,0,1,1,1,0,0,1,0,0,0,1,1,1,0,1,0,1,0,0,1,1,1,0]},{"k":"reiko_kujo","n":"Reiko Kujo","g":"Everyday cast","s":"alive","tot":5,"l50":0,"last":607,"w":[1238,1242,2.5],"p100":19.0,"e100":0.3,"pr":[0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,1,0,0,0,1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,1,0,0,1,0,0,0,0,0,1,0,0,0,0,1,1,2,1,1,0,1,1,0,1,1,0]}]};
+const IMG_DIR = 'assets/images/', AUDIO_DIR = 'assets/audio/';
+const LABEL = { alive: 'Alive', dead: 'Deceased', dead_doubtful: 'Presumed dead, fate doubtful' };
+const STAMP = { alive: 'Alive', dead: 'Deceased', dead_doubtful: 'Doubtful' };
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const D = DATA, END = D.start + D.n - 1;
+const byKey = Object.fromEntries(D.chars.map((c) => [c.k, c]));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- predictions ---------- */
+$('#range').textContent = `EP ${D.start} to ${END}`;
+$('#lead').innerHTML = `Forecast for episodes <b>${D.start} to ${END}</b>: which ones are manga, which are filler, and who appears in each.`;
+
+function showPredictions() {
+  $('#results').hidden = false;
+  const manga = D.pc.reduce((a, b) => a + b, 0) / 100;
+  const cast = D.chars.reduce((a, c) => a + c.pr.reduce((x, y) => x + y, 0), 0) / 100 / D.n;
+  $('#stats').innerHTML = [
+    [manga.toFixed(0), 'manga episodes expected'], [(D.n - manga).toFixed(0), 'filler episodes expected'], [cast.toFixed(1), 'characters per episode, on average'],
+  ].map(([v, t]) => `<div class="stat"><b>${v}</b><span>${t}</span></div>`).join('');
+  $('#go').firstElementChild.firstChild.textContent = 'Predictions are open';
+  $('#results').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+}
+
+$('#go').addEventListener('click', showPredictions);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.target.closest('input, button, summary, a, textarea')) { e.preventDefault(); showPredictions(); }
+});
+
+/* ---------- search ---------- */
+const norm = (s) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+function lev(a, b) {
+  const m = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) m[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return m[a.length][b.length];
+}
+function search(q) {
+  const nq = norm(q); if (!nq) return [];
+  const out = [];
+  for (const c of D.chars) {
+    const full = norm(c.n), toks = new Set([...full.split('_'), ...c.k.split('_')]);
+    let s = 0;
+    if (c.k === nq || full === nq) s = 100;
+    else if (c.k.startsWith(nq) || full.startsWith(nq)) s = 80;
+    else if ([...toks].some((t) => t.startsWith(nq))) s = 65;
+    else if (c.k.includes(nq) || full.includes(nq)) s = 50;
+    else if (nq.length >= 3) { const d = Math.min(...[...toks].map((t) => lev(t, nq.split('_')[0]))); if (d <= 2) s = 30 - d * 5; }
+    if (s) out.push([s, c]);
+  }
+  return out.sort((a, b) => b[0] - a[0] || b[1].tot - a[1].tot).map((x) => x[1]);
+}
+
+let sugList = [], active = 0;
+const input = $('#q'), sug = $('#sug');
+function drawSug() {
+  const q = input.value.trim();
+  sugList = search(q).slice(0, 6); active = 0;
+  $('#msg').hidden = true;
+  if (!q || !sugList.length) { sug.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
+  sug.innerHTML = sugList.map((c, i) => `<li role="option" data-k="${c.k}" aria-selected="${i === 0}"><span class="dot ${c.s}"></span><b>${esc(c.n)}</b><span class="key">${c.k}</span><span class="grp">${esc(c.g)}</span></li>`).join('');
+  sug.hidden = false; input.setAttribute('aria-expanded', 'true');
+}
+function markActive() { [...sug.children].forEach((li, i) => li.setAttribute('aria-selected', String(i === active))); }
+input.addEventListener('input', drawSug);
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' && sugList.length) { e.preventDefault(); active = (active + 1) % sugList.length; markActive(); }
+  else if (e.key === 'ArrowUp' && sugList.length) { e.preventDefault(); active = (active - 1 + sugList.length) % sugList.length; markActive(); }
+  else if (e.key === 'Escape') { sug.hidden = true; }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    const hit = sugList[active] || search(input.value)[0];
+    if (hit) openCharacter(hit.k); else notFound();
+  }
+});
+sug.addEventListener('mousedown', (e) => { const li = e.target.closest('li'); if (li) { e.preventDefault(); openCharacter(li.dataset.k); } });
+document.addEventListener('click', (e) => { if (!e.target.closest('.search')) sug.hidden = true; });
+function notFound() {
+  const m = $('#msg'); m.hidden = false; sug.hidden = true;
+  m.textContent = `No character matches "${input.value.trim()}". Use lowercase English with underscores, like kaito_kid. The list above shows every name.`;
+}
+
+/* guide chips */
+const tryKeys = ['heiji', 'kaito_kid', 'akai_subaru', 'bourbon_amuro', 'akemi_miyano', 'haibara'];
+$('#try').insertAdjacentHTML('beforeend', tryKeys.map((k) => `<button type="button" class="chip" data-k="${k}">${k}</button>`).join(''));
+const groups = [...new Set(D.chars.map((c) => c.g))];
+$('#idx').innerHTML = groups.map((g) => `<div><h4>${esc(g)}</h4><div class="chips">${D.chars.filter((c) => c.g === g).map((c) => `<button type="button" class="chip" data-k="${c.k}">${c.k}</button>`).join('')}</div></div>`).join('');
+$('.guide').addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) { input.value = c.dataset.k; openCharacter(c.dataset.k); } });
+
+/* ---------- dossier card ---------- */
+let audio = null, audioKey = null;
+function toggleTone(k, btn, note) {
+  if (audio && audioKey === k && !audio.paused) { audio.pause(); return; }
+  if (audio) audio.pause();
+  audio = new Audio(`${AUDIO_DIR}${k}.mp3`); audioKey = k;
+  audio.onplay = () => btn.classList.add('on');
+  audio.onpause = audio.onended = () => btn.classList.remove('on');
+  const missing = () => { note.textContent = `No tone yet. Add ${AUDIO_DIR}${k}.mp3 to give ${byKey[k].n.split(' (')[0]} a tone.`; note.hidden = false; };
+  audio.onerror = missing;
+  audio.play().catch((err) => { if (err && err.name !== 'NotAllowedError' && err.name !== 'AbortError') missing(); });
+}
+function loadPortrait(img, k) {
+  const exts = ['jpg', 'png', 'webp']; let i = 0;
+  img.onerror = () => { i++; if (i < exts.length) img.src = `${IMG_DIR}${k}.${exts[i]}`; else img.remove(); };
+  img.src = `${IMG_DIR}${k}.${exts[0]}`;
+}
+const initials = (n) => n.replace(/\(.*\)/, '').replace(/^(Dr\.|Inspector)\s+/, '').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('');
+
+function openCharacter(k, scroll) {
+  const c = byKey[k]; if (!c) return notFound();
+  sug.hidden = true; $('#msg').hidden = true;
+  const short = c.n.split(' (')[0];
+  const card = $('#card');
+  let next;
+  if (c.w) {
+    const [a, b, p] = c.w, same = a === b;
+    next = `<div class="next"><div class="lbl" style="margin:0">Next appearance</div>
+      <div class="when">${same ? `EP ${a}` : `EP ${a} to ${b}`}<small>${same ? 'one episode' : `${b - a + 1} episodes`}</small></div>
+      <div class="meter" role="img" aria-label="${p}% chance"><i style="width:${Math.min(p, 100)}%"></i></div>
+      <p><b>${p}%</b> chance the next appearance falls inside this window. <b>${c.p100}%</b> chance of appearing at least once in the next 100 episodes, about <b>${c.e100}</b> times in total.</p>
+      <div><div class="spark">${c.pr.map((v, i) => `<i class="${D.start + i >= a && D.start + i <= b ? 'in' : ''}" style="height:${Math.max(v, 3)}%" title="EP ${D.start + i}: ${v}%"></i>`).join('')}</div>
+      <div class="axis"><span>EP ${D.start}</span><span>chance of appearing in each episode</span><span>EP ${END}</span></div></div></div>`;
+  } else {
+    const doubt = c.s === 'dead_doubtful';
+    next = `<p class="note">${doubt
+      ? `${esc(short)} was killed in the story, but her fate is still debated. The model gives no forecast, and she only returns in flashbacks unless the story reveals more.`
+      : `${esc(short)} is dead, so there is no forecast. Flashback appearances are not predicted.`}</p>`;
+  }
+  card.innerHTML = `
+    <div class="portrait"><span class="mono">${esc(initials(c.n))}</span><img alt="${esc(short)}">
+      <span class="stamp ${c.s}">${STAMP[c.s]}</span>
+      <button class="tone" type="button" aria-label="Play ${esc(short)}'s tone"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.55.83l10-6.5a1 1 0 0 0 0-1.66l-10-6.5A1 1 0 0 0 8 5.5Z"/></svg></button></div>
+    <div class="file">
+      <div><div class="eyebrow"><span>Case file</span><span>${esc(c.g)}</span><span>${c.k}</span></div><h2>${esc(c.n)}</h2></div>
+      <span class="status ${c.s}"><span class="dot ${c.s}"></span>${LABEL[c.s]}</span>
+      <div class="facts">
+        <div class="fact"><b>${c.tot}</b><span>episodes appeared in</span></div>
+        <div class="fact"><b>${c.last ? 'EP ' + c.last : 'none'}</b><span>last seen</span></div>
+        <div class="fact"><b>${c.l50}<small style="font-size:.6em;color:var(--muted)">/50</small></b><span>in the last 50 episodes</span></div>
+      </div>
+      ${next}
+      ${c.s !== 'alive' && c.tot === 0 ? '<p class="note">No appearances were found for this character in the scraped data.</p>' : ''}
+      <p class="note" id="toneNote" hidden></p>
+    </div>`;
+  loadPortrait(card.querySelector('img'), c.k);
+  const btn = card.querySelector('.tone');
+  btn.addEventListener('click', () => toggleTone(c.k, btn, card.querySelector('#toneNote')));
+  if (scroll) $('#h2f').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+}
+
+openCharacter('heiji');
+$('#go').focus({ preventScroll: true });
+</script>
+</body></html>

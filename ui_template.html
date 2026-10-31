@@ -1,0 +1,367 @@
+<title>Conan Forecast</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: a single case board. Hero action on top (one big button reveals the 100-episode forecast),
+   then a character finder with a typing guide, and a two-part dossier card (portrait | case file). */
+:root {
+  --bg: #e7ecf5; --panel: #f4f7fc; --card: #ffffff; --ink: #0d1930; --muted: #51607b; --line: #cbd5e8;
+  --accent: #2255e3; --on-accent: #ffffff; --accent-soft: #dae5fd; --bar: #b6c3dd;
+  --ok: #0c7a50; --ok-soft: #d6f0e4; --bad: #b02b38; --bad-soft: #f8dcdf; --warn: #96580a; --warn-soft: #faeacb;
+  --shadow: 0 1px 2px rgba(13, 25, 48, .06), 0 12px 32px -16px rgba(13, 25, 48, .22);
+  --f-display: 'Unbounded', 'Trebuchet MS', sans-serif;
+  --f-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #09111f; --panel: #0f1a2e; --card: #14213a; --ink: #e8eefc; --muted: #94a3c2; --line: #263552;
+    --accent: #6f96ff; --on-accent: #07122b; --accent-soft: #1b2e5a; --bar: #33466c;
+    --ok: #4ad19b; --ok-soft: #12382b; --bad: #ff8a95; --bad-soft: #43202a; --warn: #f2b45a; --warn-soft: #3f2d0e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 36px -18px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #09111f; --panel: #0f1a2e; --card: #14213a; --ink: #e8eefc; --muted: #94a3c2; --line: #263552;
+  --accent: #6f96ff; --on-accent: #07122b; --accent-soft: #1b2e5a; --bar: #33466c;
+  --ok: #4ad19b; --ok-soft: #12382b; --bad: #ff8a95; --bad-soft: #43202a; --warn: #f2b45a; --warn-soft: #3f2d0e;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 36px -18px rgba(0, 0, 0, .7);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 var(--f-body);
+  padding-block: 24px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 28px; }
+
+/* top bar */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 .95rem var(--f-display); letter-spacing: .01em; }
+.brand svg { width: 28px; height: 28px; color: var(--accent); }
+.range { font: 500 .8rem var(--f-mono); color: var(--muted); border: 1px solid var(--line); background: var(--panel); padding: 5px 12px; border-radius: 99px; }
+
+/* hero */
+.hero { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: clamp(20px, 4vw, 38px); display: grid; gap: 22px; box-shadow: var(--shadow); }
+.hero h1 { font: 700 clamp(1.5rem, 4.4vw, 2.5rem)/1.12 var(--f-display); letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.hero p { margin: 0; color: var(--muted); max-width: 62ch; }
+.go { justify-self: start; display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; padding: 16px 20px 16px 26px; border: 0; border-radius: 16px; cursor: pointer; background: var(--accent); color: var(--on-accent); font: 800 1.05rem var(--f-body); box-shadow: 0 12px 26px -12px var(--accent); transition: transform .15s ease; text-align: left; }
+.go:hover { transform: translateY(-2px); }
+.go small { font-weight: 500; opacity: .85; font-size: .8rem; display: block; }
+kbd { font: 500 .8rem var(--f-mono); padding: 4px 10px; border-radius: 8px; background: color-mix(in srgb, var(--on-accent) 20%, transparent); border: 1px solid color-mix(in srgb, var(--on-accent) 35%, transparent); }
+
+/* results */
+#results { display: grid; gap: 20px; padding-top: 6px; border-top: 1px solid var(--line); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+.stat { border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 12px 14px; }
+.stat b { display: block; font: 500 1.55rem var(--f-mono); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: .82rem; }
+.lbl { font: 700 .72rem var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.strip, .spark { display: grid; grid-template-columns: repeat(100, minmax(0, 1fr)); gap: 1px; align-items: end; }
+.strip { height: 60px; }
+.strip button { padding: 0; border: 0; background: var(--bar); border-radius: 2px 2px 0 0; min-height: 3px; cursor: pointer; }
+.strip button.in { background: var(--accent); }
+.axis { display: flex; justify-content: space-between; font: 500 .72rem var(--f-mono); color: var(--muted); margin-top: 6px; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.tab { flex: none; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 12px; font: 500 .8rem var(--f-mono); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tog { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: .88rem; cursor: pointer; }
+.ep { display: grid; grid-template-columns: 96px 128px minmax(0, 1fr); gap: 8px 16px; padding: 14px 0; border-top: 1px solid var(--line); align-items: start; }
+.epno { font: 500 1rem var(--f-mono); }
+.epno small { display: block; color: var(--muted); font-size: .72rem; }
+.pill { justify-self: start; display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 99px; font: 700 .78rem var(--f-body); background: var(--bar); color: var(--ink); }
+.pill.m { background: var(--accent-soft); color: var(--accent); }
+.pill i { font: 500 .72rem var(--f-mono); font-style: normal; opacity: .85; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.chip { display: inline-flex; gap: 6px; align-items: baseline; border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 4px 11px; font: 700 .8rem var(--f-body); cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip i { font: 500 .72rem var(--f-mono); font-style: normal; color: var(--muted); }
+.chip.lo { background: transparent; color: var(--muted); font-weight: 500; }
+.foot { color: var(--muted); font-size: .82rem; margin: 0; max-width: 70ch; }
+
+/* finder */
+.sec { font: 700 1.25rem var(--f-display); margin: 0; }
+.finder { display: grid; gap: 16px; }
+.guide { border: 1.5px dashed var(--line); border-radius: 18px; padding: 16px 20px; background: var(--panel); display: grid; gap: 12px; }
+.guide h3 { margin: 0; font: 800 .95rem var(--f-body); }
+.guide ol { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; color: var(--muted); }
+code, .k { font: 500 .86em var(--f-mono); background: var(--accent-soft); color: var(--accent); padding: 1px 7px; border-radius: 6px; }
+.try { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.try > span { color: var(--muted); font-size: .85rem; margin-right: 2px; }
+.try .chip, .idx .chip { font-family: var(--f-mono); font-weight: 500; font-size: .78rem; }
+details.index summary { cursor: pointer; font-weight: 700; color: var(--accent); width: fit-content; }
+.idx { display: grid; gap: 12px; margin-top: 12px; }
+.idx h4 { margin: 0 0 6px; font: 700 .72rem var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.search { position: relative; }
+.search > svg { position: absolute; left: 17px; top: 17px; width: 20px; height: 20px; color: var(--muted); pointer-events: none; }
+.search input { width: 100%; padding: 15px 18px 15px 48px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--card); font: 500 1.05rem var(--f-mono); }
+.search input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 4px var(--accent-soft); }
+.sug { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 6px); list-style: none; margin: 0; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.sug li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer; min-width: 0; }
+.sug li[aria-selected="true"] { background: var(--accent-soft); }
+.sug b { font-weight: 700; }
+.sug .key { font: 500 .78rem var(--f-mono); color: var(--muted); }
+.sug .grp { margin-left: auto; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+.dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.dot.alive { background: var(--ok); } .dot.dead { background: var(--bad); } .dot.dead_doubtful { background: var(--warn); }
+.msg { margin: 0; color: var(--bad); font-weight: 600; }
+
+/* dossier card */
+.dossier { display: grid; grid-template-columns: minmax(0, 280px) minmax(0, 1fr); background: var(--card); border: 1px solid var(--line); border-radius: 26px; overflow: hidden; box-shadow: var(--shadow); }
+.portrait { position: relative; min-height: 360px; display: grid; place-items: center; overflow: hidden; background: linear-gradient(165deg, var(--accent-soft), var(--panel)); }
+.portrait .mono { font: 700 5rem var(--f-display); color: var(--accent); opacity: .35; }
+.portrait img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
+.stamp { position: absolute; left: 14px; bottom: 20px; transform: rotate(-6deg); border: 2.5px solid currentColor; border-radius: 8px; padding: 5px 11px; font: 700 .8rem var(--f-mono); letter-spacing: .14em; text-transform: uppercase; background: color-mix(in srgb, var(--card) 85%, transparent); }
+.stamp.alive { color: var(--ok); } .stamp.dead { color: var(--bad); } .stamp.dead_doubtful { color: var(--warn); }
+.tone { position: absolute; right: 14px; bottom: 14px; width: 48px; height: 48px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); cursor: pointer; box-shadow: 0 8px 18px -8px var(--accent); }
+.tone svg { width: 20px; height: 20px; }
+.tone.on { box-shadow: 0 0 0 5px var(--accent-soft), 0 0 0 7px var(--accent); }
+.file { padding: clamp(18px, 3vw, 30px); display: grid; gap: 18px; align-content: start; min-width: 0; }
+.eyebrow { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 500 .74rem var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.file h2 { margin: 6px 0 0; font: 700 clamp(1.35rem, 3.4vw, 2rem)/1.15 var(--f-display); overflow-wrap: anywhere; }
+.status { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 5px 13px; border-radius: 99px; font-weight: 800; font-size: .85rem; }
+.status.alive { background: var(--ok-soft); color: var(--ok); } .status.dead { background: var(--bad-soft); color: var(--bad); } .status.dead_doubtful { background: var(--warn-soft); color: var(--warn); }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.fact { border: 1px solid var(--line); border-radius: 14px; padding: 12px; min-width: 0; }
+.fact b { display: block; white-space: nowrap; font: 500 clamp(1.15rem, 3vw, 1.6rem) var(--f-mono); font-variant-numeric: tabular-nums; }
+.fact span { font-size: .78rem; color: var(--muted); }
+.next { border-radius: 18px; background: var(--panel); padding: 16px 18px; display: grid; gap: 10px; }
+.when { font: 700 clamp(1.25rem, 3vw, 1.75rem) var(--f-display); }
+.when small { font: 500 .8rem var(--f-mono); color: var(--muted); margin-left: 8px; }
+.meter { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.next p { margin: 0; color: var(--muted); font-size: .9rem; }
+.next p b { color: var(--ink); }
+.spark { height: 64px; }
+.spark i { background: var(--bar); border-radius: 1px 1px 0 0; min-height: 2px; }
+.spark i.in { background: var(--accent); }
+.note { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--warn-soft); color: var(--warn); font-size: .88rem; font-weight: 600; }
+.assets { color: var(--muted); font-size: .78rem; margin: 0; }
+
+@media (max-width: 700px) {
+  .dossier { grid-template-columns: 1fr; }
+  .portrait { min-height: 300px; }
+  .ep { grid-template-columns: auto minmax(0, 1fr); }
+  .chips { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .go { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="13" cy="13" r="8.5"/><path d="M19.5 19.5 28 28"/><path d="M9 13h8M13 9v8" stroke-width="2"/></svg>
+      Conan Forecast
+    </div>
+    <div class="range" id="range"></div>
+  </header>
+
+  <section class="hero" aria-labelledby="h1">
+    <h1 id="h1">The next 100 episodes of Detective Conan</h1>
+    <p id="lead"></p>
+    <button class="go" id="go" type="button">
+      <span>See the predictions<small>for the next 100 episodes</small></span>
+      <kbd>Press Enter ↵</kbd>
+    </button>
+
+    <div id="results" hidden>
+      <div class="stats" id="stats"></div>
+      <p class="foot">These are averages over 200 simulated futures, not facts. Search a character below to see when they are most likely to appear.</p>
+    </div>
+  </section>
+
+  <section class="finder" aria-labelledby="h2f">
+    <h2 class="sec" id="h2f">Character file</h2>
+    <div class="guide">
+      <h3>How to type a name</h3>
+      <ol>
+        <li>Write the English name in lowercase.</li>
+        <li>Use an underscore instead of a space, like <code>kaito_kid</code> or <code>akai_subaru</code>.</li>
+        <li>A first name or a code name is usually enough: <code>heiji</code>, <code>gin</code>, <code>bourbon</code>.</li>
+      </ol>
+      <div class="try" id="try"><span>Try</span></div>
+      <details class="index">
+        <summary>Show all names</summary>
+        <div class="idx" id="idx"></div>
+      </details>
+    </div>
+
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sug" aria-autocomplete="list" placeholder="heiji, kaito_kid, akai_subaru ..." aria-label="Search for a character">
+      <ul class="sug" id="sug" role="listbox" hidden></ul>
+    </div>
+    <p class="msg" id="msg" hidden></p>
+
+    <article class="dossier" id="card" aria-live="polite"></article>
+    <p class="assets">Portrait: <code>assets/images/&lt;name&gt;.jpg</code> · Tone: <code>assets/audio/&lt;name&gt;.mp3</code>, with the same name you type in the search box.</p>
+  </section>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const IMG_DIR = 'assets/images/', AUDIO_DIR = 'assets/audio/';
+const LABEL = { alive: 'Alive', dead: 'Deceased', dead_doubtful: 'Presumed dead, fate doubtful' };
+const STAMP = { alive: 'Alive', dead: 'Deceased', dead_doubtful: 'Doubtful' };
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const D = DATA, END = D.start + D.n - 1;
+const byKey = Object.fromEntries(D.chars.map((c) => [c.k, c]));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- predictions ---------- */
+$('#range').textContent = `EP ${D.start} to ${END}`;
+$('#lead').innerHTML = `Forecast for episodes <b>${D.start} to ${END}</b>: which ones are manga, which are filler, and who appears in each.`;
+
+function showPredictions() {
+  $('#results').hidden = false;
+  const manga = D.pc.reduce((a, b) => a + b, 0) / 100;
+  const cast = D.chars.reduce((a, c) => a + c.pr.reduce((x, y) => x + y, 0), 0) / 100 / D.n;
+  $('#stats').innerHTML = [
+    [manga.toFixed(0), 'manga episodes expected'], [(D.n - manga).toFixed(0), 'filler episodes expected'], [cast.toFixed(1), 'characters per episode, on average'],
+  ].map(([v, t]) => `<div class="stat"><b>${v}</b><span>${t}</span></div>`).join('');
+  $('#go').firstElementChild.firstChild.textContent = 'Predictions are open';
+  $('#results').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+}
+
+$('#go').addEventListener('click', showPredictions);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.target.closest('input, button, summary, a, textarea')) { e.preventDefault(); showPredictions(); }
+});
+
+/* ---------- search ---------- */
+const norm = (s) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+function lev(a, b) {
+  const m = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) m[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return m[a.length][b.length];
+}
+function search(q) {
+  const nq = norm(q); if (!nq) return [];
+  const out = [];
+  for (const c of D.chars) {
+    const full = norm(c.n), toks = new Set([...full.split('_'), ...c.k.split('_')]);
+    let s = 0;
+    if (c.k === nq || full === nq) s = 100;
+    else if (c.k.startsWith(nq) || full.startsWith(nq)) s = 80;
+    else if ([...toks].some((t) => t.startsWith(nq))) s = 65;
+    else if (c.k.includes(nq) || full.includes(nq)) s = 50;
+    else if (nq.length >= 3) { const d = Math.min(...[...toks].map((t) => lev(t, nq.split('_')[0]))); if (d <= 2) s = 30 - d * 5; }
+    if (s) out.push([s, c]);
+  }
+  return out.sort((a, b) => b[0] - a[0] || b[1].tot - a[1].tot).map((x) => x[1]);
+}
+
+let sugList = [], active = 0;
+const input = $('#q'), sug = $('#sug');
+function drawSug() {
+  const q = input.value.trim();
+  sugList = search(q).slice(0, 6); active = 0;
+  $('#msg').hidden = true;
+  if (!q || !sugList.length) { sug.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
+  sug.innerHTML = sugList.map((c, i) => `<li role="option" data-k="${c.k}" aria-selected="${i === 0}"><span class="dot ${c.s}"></span><b>${esc(c.n)}</b><span class="key">${c.k}</span><span class="grp">${esc(c.g)}</span></li>`).join('');
+  sug.hidden = false; input.setAttribute('aria-expanded', 'true');
+}
+function markActive() { [...sug.children].forEach((li, i) => li.setAttribute('aria-selected', String(i === active))); }
+input.addEventListener('input', drawSug);
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' && sugList.length) { e.preventDefault(); active = (active + 1) % sugList.length; markActive(); }
+  else if (e.key === 'ArrowUp' && sugList.length) { e.preventDefault(); active = (active - 1 + sugList.length) % sugList.length; markActive(); }
+  else if (e.key === 'Escape') { sug.hidden = true; }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    const hit = sugList[active] || search(input.value)[0];
+    if (hit) openCharacter(hit.k); else notFound();
+  }
+});
+sug.addEventListener('mousedown', (e) => { const li = e.target.closest('li'); if (li) { e.preventDefault(); openCharacter(li.dataset.k); } });
+document.addEventListener('click', (e) => { if (!e.target.closest('.search')) sug.hidden = true; });
+function notFound() {
+  const m = $('#msg'); m.hidden = false; sug.hidden = true;
+  m.textContent = `No character matches "${input.value.trim()}". Use lowercase English with underscores, like kaito_kid. The list above shows every name.`;
+}
+
+/* guide chips */
+const tryKeys = ['heiji', 'kaito_kid', 'akai_subaru', 'bourbon_amuro', 'akemi_miyano', 'haibara'];
+$('#try').insertAdjacentHTML('beforeend', tryKeys.map((k) => `<button type="button" class="chip" data-k="${k}">${k}</button>`).join(''));
+const groups = [...new Set(D.chars.map((c) => c.g))];
+$('#idx').innerHTML = groups.map((g) => `<div><h4>${esc(g)}</h4><div class="chips">${D.chars.filter((c) => c.g === g).map((c) => `<button type="button" class="chip" data-k="${c.k}">${c.k}</button>`).join('')}</div></div>`).join('');
+$('.guide').addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) { input.value = c.dataset.k; openCharacter(c.dataset.k); } });
+
+/* ---------- dossier card ---------- */
+let audio = null, audioKey = null;
+function toggleTone(k, btn, note) {
+  if (audio && audioKey === k && !audio.paused) { audio.pause(); return; }
+  if (audio) audio.pause();
+  audio = new Audio(`${AUDIO_DIR}${k}.mp3`); audioKey = k;
+  audio.onplay = () => btn.classList.add('on');
+  audio.onpause = audio.onended = () => btn.classList.remove('on');
+  const missing = () => { note.textContent = `No tone yet. Add ${AUDIO_DIR}${k}.mp3 to give ${byKey[k].n.split(' (')[0]} a tone.`; note.hidden = false; };
+  audio.onerror = missing;
+  audio.play().catch((err) => { if (err && err.name !== 'NotAllowedError' && err.name !== 'AbortError') missing(); });
+}
+function loadPortrait(img, k) {
+  const exts = ['jpg', 'png', 'webp']; let i = 0;
+  img.onerror = () => { i++; if (i < exts.length) img.src = `${IMG_DIR}${k}.${exts[i]}`; else img.remove(); };
+  img.src = `${IMG_DIR}${k}.${exts[0]}`;
+}
+const initials = (n) => n.replace(/\(.*\)/, '').replace(/^(Dr\.|Inspector)\s+/, '').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('');
+
+function openCharacter(k, scroll) {
+  const c = byKey[k]; if (!c) return notFound();
+  sug.hidden = true; $('#msg').hidden = true;
+  const short = c.n.split(' (')[0];
+  const card = $('#card');
+  let next;
+  if (c.w) {
+    const [a, b, p] = c.w, same = a === b;
+    next = `<div class="next"><div class="lbl" style="margin:0">Next appearance</div>
+      <div class="when">${same ? `EP ${a}` : `EP ${a} to ${b}`}<small>${same ? 'one episode' : `${b - a + 1} episodes`}</small></div>
+      <div class="meter" role="img" aria-label="${p}% chance"><i style="width:${Math.min(p, 100)}%"></i></div>
+      <p><b>${p}%</b> chance the next appearance falls inside this window. <b>${c.p100}%</b> chance of appearing at least once in the next 100 episodes, about <b>${c.e100}</b> times in total.</p>
+      <div><div class="spark">${c.pr.map((v, i) => `<i class="${D.start + i >= a && D.start + i <= b ? 'in' : ''}" style="height:${Math.max(v, 3)}%" title="EP ${D.start + i}: ${v}%"></i>`).join('')}</div>
+      <div class="axis"><span>EP ${D.start}</span><span>chance of appearing in each episode</span><span>EP ${END}</span></div></div></div>`;
+  } else {
+    const doubt = c.s === 'dead_doubtful';
+    next = `<p class="note">${doubt
+      ? `${esc(short)} was killed in the story, but her fate is still debated. The model gives no forecast, and she only returns in flashbacks unless the story reveals more.`
+      : `${esc(short)} is dead, so there is no forecast. Flashback appearances are not predicted.`}</p>`;
+  }
+  card.innerHTML = `
+    <div class="portrait"><span class="mono">${esc(initials(c.n))}</span><img alt="${esc(short)}">
+      <span class="stamp ${c.s}">${STAMP[c.s]}</span>
+      <button class="tone" type="button" aria-label="Play ${esc(short)}'s tone"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.55.83l10-6.5a1 1 0 0 0 0-1.66l-10-6.5A1 1 0 0 0 8 5.5Z"/></svg></button></div>
+    <div class="file">
+      <div><div class="eyebrow"><span>Case file</span><span>${esc(c.g)}</span><span>${c.k}</span></div><h2>${esc(c.n)}</h2></div>
+      <span class="status ${c.s}"><span class="dot ${c.s}"></span>${LABEL[c.s]}</span>
+      <div class="facts">
+        <div class="fact"><b>${c.tot}</b><span>episodes appeared in</span></div>
+        <div class="fact"><b>${c.last ? 'EP ' + c.last : 'none'}</b><span>last seen</span></div>
+        <div class="fact"><b>${c.l50}<small style="font-size:.6em;color:var(--muted)">/50</small></b><span>in the last 50 episodes</span></div>
+      </div>
+      ${next}
+      ${c.s !== 'alive' && c.tot === 0 ? '<p class="note">No appearances were found for this character in the scraped data.</p>' : ''}
+      <p class="note" id="toneNote" hidden></p>
+    </div>`;
+  loadPortrait(card.querySelector('img'), c.k);
+  const btn = card.querySelector('.tone');
+  btn.addEventListener('click', () => toggleTone(c.k, btn, card.querySelector('#toneNote')));
+  if (scroll) $('#h2f').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+}
+
+openCharacter('heiji');
+$('#go').focus({ preventScroll: true });
+</script>
